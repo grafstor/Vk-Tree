@@ -56,11 +56,16 @@ class Parcer:
         self.inf = Informer()
         self.session = self.__start_session(login,
                                             password)
+        
+        page = self.session.get('https://vk.com/feed').text
+        page = page[page.find('href="/albums')+13:]
+        self.main_id = int(page[:page.find('"')])
+
         self.deep = deep
         self.id = id
         self.name = name
 
-        self.to_check = self.__convert(self.__get_pages([463988739])[0])
+        self.to_check = self.__convert(self.__get_pages([self.main_id])[0])
         self.tree = [[] for i in range(deep)]
 
     def start(self):
@@ -178,7 +183,7 @@ class Parcer:
     def __is_closed(self, friends, first):
         if len(friends) == 9:
             if self.to_check[1]['id'] == friends[1]["id"]:
-                if first != 463988739:
+                if first != self.main_id:
                     return True
         return False
 

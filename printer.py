@@ -18,17 +18,16 @@ from random import randint
 
 from PIL import Image, ImageDraw
 import requests
-import graf_keys
 
 import parcer
 
-#your vk login, password to parce
-LOGIN = graf_keys.vk_login
-PASSWORD = graf_keys.vk_password
+# your vk login, password to parce
+LOGIN = "your vk login"
+PASSWORD = "your vk password"
 
-# persin to build tree
-MIAN_ID = '495812279'
-MAIN_NAME = 'some gay from my class'
+# person to build tree
+MIAN_ID = '123456789'
+MAIN_NAME = 'you'
 
 deep = 3
 
@@ -138,5 +137,5 @@ draw_circle(tree[0][0]['coord'], 10, (255,255,255))
 
 print('Done')
 
-main_pic.save('test.png', "PNG")
+main_pic.save('result.png', "PNG")
 main_pic.show()

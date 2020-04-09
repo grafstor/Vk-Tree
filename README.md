@@ -14,5 +14,5 @@ To take friends tree:
     tree = parce_man.get_tree()
 
     print(tree[1])
-    [{'id':21345634, 'name':"Vova Vova", 'img':"https://image.jpg"},
+    [{'id':21345634, 'name':"Vova Vova",'refer':"MAIN_ID", 'img':"https://image.jpg"},
     ...]

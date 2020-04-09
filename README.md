@@ -3,11 +3,11 @@
 
 # Example
 To take friends tree:
+
     import parcer
     parce_man = parcer.Manager(id=MIAN_ID,
                                name=MAIN_NAME,
                                deep=DEEP,
-
                                login=LOGIN,
                                password=PASSWORD)
     parce_man.build_tree()

@@ -11,8 +11,9 @@
         remove text
 '''
 
-__version__ = '2.0'
+__version__ = '2.0' 
 
+import sys
 from math import sqrt
 from random import randint
 
@@ -20,16 +21,17 @@ from PIL import Image, ImageDraw
 import requests
 
 import parcer
+import getpass
 
-# your vk login, password to parce
-LOGIN = "your vk login"
-PASSWORD = "your vk password"
+# your vk login, password to parce   python setup.py build_ext --inplace
+LOGIN = getpass.getpass(prompt='vk login: ')
+PASSWORD =  getpass.getpass(prompt='vk password: ')
 
 # person to build tree
-MIAN_ID = '123456789'
-MAIN_NAME = 'you'
+MIAN_ID = getpass.getpass(prompt='target id: ')
+MAIN_NAME = 'man'
 
-deep = 3
+DEEP = 3
 
 width = 3000
 height = 3000
@@ -55,17 +57,20 @@ def draw_person(item_one, item_two, average):
     main_img.line([item_one['coord'], item_two['coord']] , fill=line_color) 
 
     ava = 0
+    size = 0
     if item_two['img'] != '/images/camera_100.png?ava=1':
         ava = Image.open(requests.get(item_two['img'], stream=True).raw)
 
         resize = (item_two['coun']/average)*15
         ava.thumbnail([avasize+resize,
                        avasize+resize])
+        size = avasize+resize
     else:
+        size = avasize
         ava = remote_account_pic
 
-    main_pic.paste(ava, (int(item_two['coord'][0]-avasize//2),
-                    int(item_two['coord'][1]-avasize//2)))
+    main_pic.paste(ava, (int(item_two['coord'][0]-size//2),
+                         int(item_two['coord'][1]-size//2)))
 
 def friends_for(action):
     def for_loop():
@@ -99,25 +104,22 @@ def draw_imges():
         if tree[1][i]['img'] != '/images/deactivated_100.png?ava=1':
             draw_person(tree[0][0], tree[1][i], average_connections)
 
-def print_all_tree():
-    for i in range(len(tree)):
-        print(f'\n\n{i}')
-        for j in range(len(tree[i])):
-            print(tree[i][j])
 
 main_pic = Image.new("RGB", (height, width))
 main_img = ImageDraw.Draw(main_pic)
 
-parce_man = parcer.Manager(id=MIAN_ID,
+parce_man = parcer.Tree(id=MIAN_ID,
                            name=MAIN_NAME,
-                           deep=deep,
+                           deep=DEEP,
 
                            login=LOGIN,
                            password=PASSWORD)
-parce_man.build_tree()
+parce_man.start()
+
 tree = parce_man.get_tree()
+
 print("Load tree..")
-# change info
+
 for i in range(len(tree[1])):
     tree[1][i]['coord'] = (randint(0, width),
                            randint(0, height))
@@ -126,7 +128,6 @@ for i in range(len(tree[1])):
 tree[0][0]['coord'] = (width//2,
                        height//2)
 
-# print_all_tree()
 remote_account_pic = get_remote_account_pic()
 
 correct_cords()

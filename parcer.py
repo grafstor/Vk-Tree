@@ -5,92 +5,86 @@
 
     version 1.0:
         Return matrix of dict:
-            {id,name,refers,img}
+            {id, name, refers, img}
+
+    version 2.0:
+        From requests to aiohttp
+        progress bar
 '''
 
-__version__ = "1.0"
+__version__ = "2.0"
 
-import requests
+import aiohttp
 import lxml.html
 import asyncio
 import time
 
-class Manager:
-    def __init__(self, id=1, name='you', deep=2, login=0, password=0):
-        '''parce builder'''
-        self.parcer = Parcer(id, name, deep, login, password)
-        self.tree = []
+url_to_session = 'https://vk.com/'
+url_to_friends = 'https://vk.com/al_friends.php'
 
-    def __start(self):
-        '''call parcer'''
-        self.parcer.start()
+headers_to_session = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 \
+        (KHTML, like Gecko) Chrome/61.0.3163.100 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language':'ru-ru,ru;q=0.8,en-us;q=0.5,en;q=0.3',
+        'Accept-Encoding':'gzip, deflate',
+        'Connection':'keep-alive',
+        'DNT':'1'
+        }
 
-    def build_tree(self):
-        '''start main loop'''
-        self.__start()
-        self.tree = self.parcer.get_tree()
+data_to_friends = {'act': 'load_friends_silent',
+                   'id': '{}',
+                   'al': '1',
+                   'gid': '0',}
 
-    def get_tree(self):
-        '''after building return friends tree'''
-        return self.tree
-
-
-class Informer:
-    def __init__(self):
-        self.tt = 0.0
-        self.toggle = False
-
-    def log(self, text, num=0):
-        if self.toggle:
-            print(f'{text}',end='  ')
-            print(f'ranning time: {time.time()-self.tt}')
-            self.toggle = False
-        else:
-            print(f'{text}: {num}')
-            self.tt = time.time()
-            self.toggle = True
-
-
-class Parcer:
+class Tree:
     def __init__(self, id, name, deep, login, password):
-        self.inf = Informer()
-        self.session = self.__start_session(login,
-                                            password)
-        
-        page = self.session.get('https://vk.com/feed').text
-        page = page[page.find('href="/albums')+13:]
-        self.main_id = int(page[:page.find('"')])
+        self.login = login
+        self.password = password
+
+        self.main_id = self.__get_main_id()
 
         self.deep = deep
         self.id = id
         self.name = name
 
-        self.to_check = self.__convert(self.__get_pages([self.main_id])[0])
+        self.progress = 0
+
+        self.to_check = self.__get_friends([self.main_id])[0]
         self.tree = [[] for i in range(deep)]
+
+    async def __get_main_id(self):
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url=url_to_session, headers=headers_to_session) as data:
+                page = lxml.html.fromstring(await data.text())
+                form = page.forms[0]
+                form.fields['email'] = self.login
+                form.fields['pass'] = self.password
+            async with session.post(form.action, data=form.form_values()) as _: pass
+            async with session.get(url='https://vk.com/feed') as data:
+                page = data.text()
+                page = page[page.find('href="/albums')+13:]
+                return int(page[:page.find('"')])
 
     def start(self):
         self.__tree(self.deep,
-                    [{'id':self.id,
-                      'name':self.name,
-                      'refer':''}])
+                    [{'id': self.id,
+                      'name': self.name,
+                      'refer': ''}])
+        print('')
         print('Parsing done!')
         print(f'Total persons: {sum([len(i) for i in self.tree])}')
 
     def __tree(self, iteration, persons):
-        '''get iteration and array 
-            with {id, name, refers}'''
         self.tree[self.deep - iteration].extend(persons)
 
+        
         if iteration <= 1:
             return
 
         ids = [person["id"] for person in persons]
 
-        self.inf.log('Requests', len(ids))
-        pages = self.__get_pages(ids)
-        self.inf.log('Requests')
-
-        friends_of_persons = [self.__convert(page) for page in pages]
+        friends_of_persons = self.__get_friends(ids)
 
         for i in range(len(friends_of_persons)):
             if self.__is_closed(friends_of_persons[i], persons[0]['id']):
@@ -99,7 +93,6 @@ class Parcer:
 
             for j in range(len(friends)):
                 friends[j]['refer'] = persons[i]['id']
-                # friends[j]['iter'] = self.deep - iteration + 1
 
             self.__tree(iteration-1, friends)
 
@@ -140,50 +133,50 @@ class Parcer:
                                       "img": image})
         return convert_info_list
 
-    async def __fast_requests(self, ids):
-        pages = []
-        loop = asyncio.get_event_loop()
-        futures = [loop.run_in_executor(None, lambda: 
-                    self.session.post("https://vk.com/al_friends.php",
-                        data={'act': 'load_friends_silent',
-                              'id': str(id),
-                              'al': '1',
-                              'gid': '0',})) for id in ids]
-        for response in await asyncio.gather(*futures):
-            pages.append(response.text)
-        return pages
+    async def __fetch_post(self, session, url, data, convert, progress_len):
+        async with session.post(url=url, data=data) as response:
+            self.progress += 1
+            self.__progress_bar(progress_len)
+            return convert(await response.text())
 
-    def __get_pages(self, ids):
-        loop = asyncio.get_event_loop()
-        pages = loop.run_until_complete(self.__fast_requests(ids))
-        return pages
+    async def __load_friends(self, ids, convert, auth=True):
+        async with aiohttp.ClientSession() as session:
+            if auth:
+                async with session.get(url=url_to_session, headers=headers_to_session) as data:
+                    page = lxml.html.fromstring(await data.text())
+                    form = page.forms[0]
+                    form.fields['email'] = self.login
+                    form.fields['pass'] = self.password
+                async with session.post(form.action, data=form.form_values()) as _: pass
+            tasks = []
 
-    def __start_session(self, login, password):
-        url = 'https://vk.com/'
-        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 \
-                              (KHTML, like Gecko) Chrome/61.0.3163.100 Safari/537.36',
-                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-                    'Accept-Language':'ru-ru,ru;q=0.8,en-us;q=0.5,en;q=0.3',
-                    'Accept-Encoding':'gzip, deflate',
-                    'Connection':'keep-alive',
-                    'cookie':'remixscreen_height=20000;remixscreen_depth=100;remixscreen_winzoom=0.2;',
-                    'DNT':'1'}
+            url = url_to_friends
 
-        session = requests.session()
-        data = session.get(url, headers=headers)
-        page = lxml.html.fromstring(data.content)
+            self.progress = 0
 
-        form = page.forms[0]
-        form.fields['email'] = login
-        form.fields['pass'] = password
-          
-        session.post(form.action, data=form.form_values())
-        return session
+            progress_len = len(ids)
+            for post in enumerate(ids):
+                data = data_to_friends.copy()
+                data['id'] = post
+                tasks.append(asyncio.create_task(self.__fetch_post(session, url, data, convert, progress_len)))
+
+            return await asyncio.gather(*tasks)
+
+    def __progress_bar(self, total):
+        percent = float(self.progress) * 100 / total
+        arrow   = '-' * int(percent/100 * 30 - 1) + '>'
+        spaces  = ' ' * (30 - len(arrow))
+
+        print(f'Getting {total} friends packs: [{arrow}{spaces}] {int(percent)}%', end='\r')
+
+    def __get_friends(self, ids):
+        friends = asyncio.run(self.__load_friends(ids, self.__convert))
+        return friends
 
     def __is_closed(self, friends, first):
         if len(friends) == 9:
             if self.to_check[1]['id'] == friends[1]["id"]:
-                if first != self.main_id:
+                if int(first) != self.main_id:
                     return True
         return False
 

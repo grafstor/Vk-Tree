@@ -1,4 +1,4 @@
-# Vk-Tree
+# vk-tree
  Designed to analyze friendships
 
 # Example

@@ -1,3 +1,4 @@
+![Example](https://i.ibb.co/M2Rsvgb/example.png)
 # vk-tree
  Designed to analyze friendships
 

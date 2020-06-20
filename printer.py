@@ -13,7 +13,6 @@
 
 __version__ = '2.0' 
 
-import sys
 from math import sqrt
 from random import randint
 
@@ -38,12 +37,6 @@ height = 3000
 
 line_color = (150,150,150)
 avasize = 40
-
-def get_remote_account_pic():
-    img = requests.get('https://vk.com/images/camera_100.png?ava=1', stream=True)
-    remote_account_pic = Image.open(img.raw)
-    remote_account_pic.thumbnail([avasize-10,avasize-10])
-    return remote_account_pic
 
 def draw_circle(coords, size, color):
     x = coords[0]
@@ -105,6 +98,19 @@ def draw_imges():
             draw_person(tree[0][0], tree[1][i], average_connections)
 
 
+
+
+
+
+
+
+def get_remote_account_pic():
+    img = requests.get('https://vk.com/images/camera_100.png?ava=1', stream=True)
+    remote_account_pic = Image.open(img.raw)
+    remote_account_pic.thumbnail([avasize-10,avasize-10])
+    return remote_account_pic
+
+
 main_pic = Image.new("RGB", (height, width))
 main_img = ImageDraw.Draw(main_pic)
 
@@ -129,6 +135,8 @@ tree[0][0]['coord'] = (width//2,
                        height//2)
 
 remote_account_pic = get_remote_account_pic()
+
+
 
 correct_cords()
 draw_connections()

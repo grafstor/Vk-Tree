@@ -9,7 +9,11 @@ helps you find a person by their profile picture
 
 __version__ = '1.0'
 
-import parcer
+import sys
+import time
+import traceback
+import getpass
+
 import aiohttp
 import asyncio
 
@@ -17,8 +21,7 @@ import numpy as np
 from PIL import Image
 from io import BytesIO
 
-import time
-import getpass
+from vktree import *
 
 progress = 0
 total = 0
@@ -89,7 +92,6 @@ def find_person(tree, pic_to_search):
     past_ids = []
     errors = []
 
-    tree = tree[1:]
 
     for persons in tree:
         for i in range(len(persons)//1000+1):
@@ -115,21 +117,15 @@ def main():
     PASSWORD =  getpass.getpass(prompt='vk password: ')
 
     MIAN_ID = getpass.getpass(prompt='target id: ')
-    MAIN_NAME = 'man'
 
-    DEEP = 3
+    DEEP = 2 # +1
 
-    parce_man = parcer.Tree(id=MIAN_ID,
-                           name=MAIN_NAME,
-                           deep=DEEP,
+    parcer = Parcer(login=LOGIN, password=PASSWORD)
+    tree = parcer.download_tree(MIAN_ID, DEEP)
 
-                           login=LOGIN,
-                           password=PASSWORD)
-
-    parce_man.start()
-    tree = parce_man.get_tree()
-
-    print(find_person(tree, 'ava.jpg'))
+    id = find_person(tree, 'your_pic.jpg')
+    print(id)
 
 if __name__ == '__main__':
+
     main()

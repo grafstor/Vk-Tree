@@ -7,6 +7,7 @@ import os
 import aiohttp
 import asyncio
 
+import json
 import lxml.html
 import numpy as np
 
@@ -107,12 +108,8 @@ class Parcer:
 
     def __get_packs(self, pack):
         ids = [person['id'] for person in pack]
-        try:
-            friends = asyncio.run(self.__load_friends(ids, self.__convert))
+        friends = asyncio.run(self.__load_friends(ids, self.__convert))
         
-        except Exception as E:
-            print('Error with load pack')
-
         return friends
 
     async def __fetch_post(self, session, url, data, convert):
@@ -160,63 +157,25 @@ class Parcer:
                 return id
 
     def __convert(self, *data):
-
         page, refer = data
 
-        page = page.replace("\\", "")[28:]
-
-        persons_info_list = self.__split_page(page)
-
-        convert_info_list = self.__normalize_infos(persons_info_list, refer)
-
-        return convert_info_list
-
-    def __split_page(self, page):
-        persons_info_list = []
-
-        while True:
-            left_border = page.find("[")
-            if left_border == -1:
-                break
-            page = page[left_border:]
-
-            right_border = page.find(']')
-            persons_info_list.append(page[:right_border])
-            page = page[right_border:]
-
-        for i in range(len(persons_info_list)):
-            if '[[' in persons_info_list[i]:
-                persons_info_list = persons_info_list[:i]
-                break
-
-        return persons_info_list
-
-    def __normalize_infos(self, persons_info_list, refer):
         convert_info_list = []
 
-        for person_info in persons_info_list:
-            person_info = person_info[1:].split('","')
+        page = page[4:]
 
-            id = person_info[0][1:]
+        data = json.loads(page)
+        
+        try:
+            data = json.loads(data['payload'][1][0])['all']
+        except:
+            pass
 
-            try:
-                if '<span'in person_info[5]:
-                    right_border = person_info[5].find("<span")
-                    person_info[5] = person_info[5][:right_border]
-
-                name = person_info[5]
-                url = person_info[2][1:]
-                image = person_info[1]
-
-            except:
-                name = "-noname-"
-                url = "-nourl-"
-
-            convert_info_list.append({"id": id,
-                                      "name": name,
-                                      "url": url,
+        for i in data:
+            convert_info_list.append({"id": i[0],
+                                      "name": i[5],
+                                      "url": i[2],
                                       "refers": refer,
-                                      "img": image})
+                                      "img": i[1]})
 
         return convert_info_list
 
